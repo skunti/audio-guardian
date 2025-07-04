@@ -1,0 +1,64 @@
+
+config:
+  target: 'http://localhost:3000'
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up"
+    - duration: 120
+      arrivalRate: 10
+      name: "Steady load"
+    - duration: 60
+      arrivalRate: 20
+      name: "Peak load"
+  processor: "./performance-processor.js"
+
+scenarios:
+  - name: "Audio upload workflow"
+    weight: 70
+    flow:
+      - post:
+          url: "/auth/login"
+          json:
+            email: "load-test-user@hospital.com"
+            password: "testpassword"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      
+      - post:
+          url: "/api/audio/upload"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          formData:
+            audio: "@./test-fixtures/sample-audio.wav"
+          capture:
+            - json: "$.audioId"
+              as: "audioId"
+      
+      - get:
+          url: "/api/processing/{{ audioId }}"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          
+  - name: "Data retrieval"
+    weight: 30
+    flow:
+      - post:
+          url: "/auth/login"
+          json:
+            email: "load-test-user@hospital.com"
+            password: "testpassword"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      
+      - get:
+          url: "/api/audio/recent"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          
+      - get:
+          url: "/api/dashboard/stats"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
